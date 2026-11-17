@@ -192,6 +192,8 @@ nav.tabs {
 .leg .tm { font-family: var(--font-mono); font-size: 14px; font-variant-numeric: tabular-nums; }
 .stop.single { grid-template-columns: 1fr; }
 .phrase .zh { color: var(--mute); font-size: 13.5px; }
+.phrase .plays { margin-top: 6px; }
+.btn.play { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
 .phrase .syl { font-family: var(--font-ko); font-size: 22px; font-weight: 700; letter-spacing: 0.04em; margin-top: 6px; word-break: keep-all; }
 .phrase .zhs { font-size: 13.5px; margin-top: 3px; }
 .phrase .tipline { font-size: 13px; color: var(--mute); margin-top: 3px; }
@@ -272,12 +274,52 @@ function el(tag, cls, text) {
 }
 
 var toastTimer = null;
-function toast(msg) {
+function toast(msg, ms) {
   var t = document.getElementById("toast");
   t.textContent = msg;
   t.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(function () { t.hidden = true; }, 1400);
+  toastTimer = setTimeout(function () { t.hidden = true; }, ms || 1400);
+}
+
+function koVoice() {
+  try {
+    var vs = window.speechSynthesis.getVoices();
+    for (var i = 0; i < vs.length; i++) {
+      var l = (vs[i].lang || "").replace("_", "-").toLowerCase();
+      if (l.indexOf("ko") === 0) return vs[i];
+    }
+  } catch (e) {}
+  return null;
+}
+function speak(parts, rate) {
+  if (!("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") {
+    toast("這個瀏覽器不能播放語音", 2600);
+    return;
+  }
+  var v = koVoice();
+  try {
+    window.speechSynthesis.cancel();
+    parts.forEach(function (text) {
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = "ko-KR";
+      u.rate = rate;
+      if (v) u.voice = v;
+      window.speechSynthesis.speak(u);
+    });
+  } catch (e) {
+    toast("播放失敗", 2000);
+    return;
+  }
+  if (!v && window.speechSynthesis.getVoices().length) {
+    toast("手機可能沒有韓語語音，聲音會不準。請到系統設定的「朗讀內容」下載韓語語音。", 5000);
+  }
+}
+function playBtn(label, getParts, rate) {
+  var b = el("button", "btn play", label);
+  b.type = "button";
+  b.addEventListener("click", function () { speak(getParts(), rate); });
+  return b;
 }
 function fallbackCopy(text) {
   var ta = document.createElement("textarea");
@@ -604,7 +646,7 @@ function renderTalk() {
   var frag = document.createDocumentFragment();
   var s = el("div", "sec");
   s.appendChild(el("h2", "", "韓文小抄"));
-  s.appendChild(el("p", "", "點「複製」，貼給店員或司機看。每個字塊是一個音節，「·」分音節，「/」是詞與詞之間。近似中文音只是幫助記憶，以羅馬拼音為準；韓語沒有聲調。"));
+  s.appendChild(el("p", "", "點「▶ 播放」會用手機的語音念出來（不用網路；手機要有韓語語音，聲音是機器唸的，只當參考）。「▶ 慢速」放慢，「▶ 逐字」一個音節一個音節念。點「複製」，貼給店員或司機看。每個字塊是一個音節，「·」分音節，「/」是詞與詞之間。近似中文音只是幫助記憶，以羅馬拼音為準；韓語沒有聲調。"));
   frag.appendChild(s);
   var list = el("ul", "stops");
   DATA.talk.forEach(function (p) {
@@ -616,6 +658,13 @@ function renderTalk() {
     btns.appendChild(copyBtn(p.ko, "複製"));
     row.appendChild(btns);
     li.appendChild(row);
+    var plays = el("div", "btns plays");
+    plays.appendChild(playBtn("▶ 播放", function () { return [p.ko.replace(/[?？]/g, "")]; }, 0.9));
+    plays.appendChild(playBtn("▶ 慢速", function () { return [p.ko.replace(/[?？]/g, "")]; }, 0.55));
+    plays.appendChild(playBtn("▶ 逐字", function () {
+      return (p.syl || "").split(/[·\/]/).map(function (x) { return x.trim(); }).filter(function (x) { return x; });
+    }, 0.6));
+    li.appendChild(plays);
     if (p.syl) li.appendChild(el("div", "syl", p.syl));
     if (p.sylrom) li.appendChild(el("div", "rom", p.sylrom));
     if (p.zhs) li.appendChild(el("div", "zhs", "近似中文音：" + p.zhs));
