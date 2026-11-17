@@ -132,10 +132,10 @@ nav.tabs {
   border-radius: 12px;
   padding: 12px 14px;
   display: grid;
-  grid-template-columns: 64px 1fr;
-  gap: 4px 12px;
+  grid-template-columns: 84px 1fr;
+  gap: 4px 10px;
 }
-.time { font-family: var(--font-mono); font-size: 12.5px; color: var(--mute); font-variant-numeric: tabular-nums; padding-top: 3px; line-height: 1.35; }
+.time { overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 12.5px; color: var(--mute); font-variant-numeric: tabular-nums; padding-top: 3px; line-height: 1.35; }
 .act { display: flex; justify-content: space-between; align-items: start; gap: 10px; }
 .act strong { font-size: 16px; line-height: 1.35; font-weight: 700; }
 .chip { flex: none; font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
@@ -212,7 +212,7 @@ footer { margin-top: 28px; color: var(--mute); font-size: 12.5px; }
 }
 @media (min-width: 520px) {
   body { font-size: 16px; }
-  .stop { grid-template-columns: 76px 1fr; }
+  .stop { grid-template-columns: 92px 1fr; }
 }
 </style>
 
@@ -239,8 +239,6 @@ var DAYS = [
 ];
 var EXTRA = [
   { key: "todo", label: "待確認" },
-  { key: "route", label: "交通" },
-  { key: "bus", label: "公車" },
   { key: "talk", label: "韓文小抄" }
 ];
 
@@ -442,6 +440,43 @@ function renderDay(day) {
   shown.forEach(function (r) { list.appendChild(stopCard(r)); });
   if (!shown.length) list.appendChild(el("li", "empty", "這一天沒有待確認的項目。"));
   frag.appendChild(list);
+
+  var legs = DATA.route.filter(function (r) { return r.day === day.key; });
+  if (legs.length) {
+    var s1 = el("div", "sec");
+    s1.appendChild(el("h2", "", "這天的交通"));
+    s1.appendChild(el("p", "", "多半是網站的估計，不是班次表。出發前用 Naver Map 或 Google 地圖看即時班次。"));
+    frag.appendChild(s1);
+    var l1 = el("ul", "stops");
+    legs.forEach(function (r) {
+      var li = el("li", "stop single");
+      var d = el("div", "leg");
+      d.appendChild(el("div", "r", r.leg));
+      d.appendChild(el("div", "tm", r.time));
+      d.appendChild(el("div", "m", r.how + (r.conf ? "　" + r.conf : "") + (r.note ? "　" + r.note : "")));
+      li.appendChild(d);
+      l1.appendChild(li);
+    });
+    frag.appendChild(l1);
+  }
+  var buses = DATA.bus.filter(function (b) { return b.day === day.key; });
+  if (buses.length) {
+    var s2 = el("div", "sec");
+    s2.appendChild(el("h2", "", "這天的公車首末班"));
+    s2.appendChild(el("p", "", "第三方網站只有各站的首班與末班經過時間，不是每班發車時刻；車程是估計。"));
+    frag.appendChild(s2);
+    var l2 = el("ul", "stops");
+    buses.forEach(function (b) {
+      var li = el("li", "stop single");
+      var d = el("div", "leg");
+      d.appendChild(el("div", "r", b.line + "　" + b.leg));
+      d.appendChild(el("div", "tm", "首班 " + b.first + "　末班 " + b.last));
+      d.appendChild(el("div", "m", "車程 " + b.ride + (b.note ? "　" + b.note : "")));
+      li.appendChild(d);
+      l2.appendChild(li);
+    });
+    frag.appendChild(l2);
+  }
   return frag;
 }
 
